@@ -333,15 +333,26 @@ def add_new():
         return login("/add_new")
     if request.method == 'POST':
         page_name = fetch_page_name()
+        is_folder = request.form.get("IS_FOLDER") == "on"
 
         re_render_page = ensure_page_can_be_created(page_name, page_name)
         if re_render_page:
             return re_render_page
 
-        save(page_name)
+        if is_folder:
+            # Create a directory instead of a Markdown file
+            dir_path = safe_join(cfg.wiki_directory, page_name)
+            if dir_path is not None and not os.path.exists(dir_path):
+                os.makedirs(dir_path)
+        else:
+            # Standard page save workflow
+            save(page_name)
+
         git_sync_thread = Thread(target=wrm.git_sync, args=(page_name, "Add"))
         git_sync_thread.start()
 
+        if is_folder:
+            return redirect(url_for("list_wiki", folderpath=page_name))
         return redirect(url_for("file_page", file_page=page_name))
     else:
         page_name = request.args.get("page")
