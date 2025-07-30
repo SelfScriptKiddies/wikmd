@@ -32,6 +32,7 @@ from wikmd.plugins.load_plugins import PluginLoader
 from wikmd.search import Search, Watchdog
 from wikmd.utils import pathify, secure_filename
 from wikmd.web_dependencies import get_web_deps
+from typing import List
 
 SESSIONS = []
 
@@ -43,6 +44,27 @@ DRAWING_FOLDER_PATH = pathify(cfg.wiki_directory, cfg.drawings_route)
 HIDDEN_FOLDER_PATH_LIST = [pathify(cfg.wiki_directory, hidden_folder) for hidden_folder in cfg.hide_folder_in_wiki]
 HOMEPAGE_PATH = pathify(cfg.wiki_directory, cfg.homepage)
 HIDDEN_PATHS = tuple([UPLOAD_FOLDER_PATH, GIT_FOLDER_PATH, DRAWING_FOLDER_PATH, HOMEPAGE_PATH] + HIDDEN_FOLDER_PATH_LIST)
+
+def _get_existing_folders() -> List[str]:
+    """
+    Return list of existing folders (relative paths) inside the wiki directory, excluding hidden ones.
+    """
+    folders: List[str] = []
+    for current_path, dirnames, _ in os.walk(cfg.wiki_directory):
+        if current_path.startswith(HIDDEN_PATHS):
+            continue
+
+        for dirname in dirnames:
+            abs_dir_path = pathify(current_path, dirname)
+            if abs_dir_path.startswith(HIDDEN_PATHS):
+                continue
+
+            rel_dir_path = os.path.relpath(abs_dir_path, cfg.wiki_directory)
+            rel_dir_path = rel_dir_path.replace(os.sep, "/")
+            folders.append(rel_dir_path)
+
+    folders.sort()
+    return folders
 
 _project_folder = Path(__file__).parent
 app = Flask(__name__,
@@ -127,6 +149,7 @@ def ensure_page_can_be_created(page, page_name):
         title=page,
         upload_path=cfg.images_route,
         image_allowed_mime=cfg.image_allowed_mime,
+        folders=_get_existing_folders(),
         system=SYSTEM_SETTINGS
     )
 
@@ -335,6 +358,14 @@ def add_new():
         page_name = fetch_page_name()
         is_folder = request.form.get("IS_FOLDER") == "on"
 
+        folder_prefix = request.form.get('FOLDER_PATH', '').strip()
+        if folder_prefix:
+            folder_prefix = folder_prefix.strip('/')
+            if not page_name.startswith(folder_prefix + "/"):
+                # Page name will be sanitized later
+                page_name = f"{folder_prefix}/{page_name}"
+        
+
         re_render_page = ensure_page_can_be_created(page_name, page_name)
         if re_render_page:
             return re_render_page
@@ -363,6 +394,7 @@ def add_new():
             upload_path=cfg.images_route,
             image_allowed_mime=cfg.image_allowed_mime,
             title=page_name,
+            folders=_get_existing_folders(),
             system=SYSTEM_SETTINGS
         )
 
@@ -391,6 +423,7 @@ def edit_homepage():
             title=cfg.homepage_title,
             upload_path=cfg.images_route,
             image_allowed_mime=cfg.image_allowed_mime,
+            folders=_get_existing_folders(),
             system=SYSTEM_SETTINGS
         )
 
@@ -440,6 +473,7 @@ def edit(page):
                 title=page,
                 upload_path=cfg.images_route,
                 image_allowed_mime=cfg.image_allowed_mime,
+                folders=_get_existing_folders(),
                 system=SYSTEM_SETTINGS
             )
         else:
@@ -450,6 +484,7 @@ def edit(page):
                 title=page,
                 upload_path=cfg.images_route,
                 image_allowed_mime=cfg.image_allowed_mime,
+                folders=_get_existing_folders(),
                 system=SYSTEM_SETTINGS
             )
 

@@ -23,6 +23,18 @@
             <input type="text" class="form-control" id="name" name="PN" value="{{title}}">
         </div>
 
+        <div class="form-group mb-3 col-12">
+            <label for="folderSelect" class="form-label">Folder</label>
+            <select id="folderSelect" name="FOLDER_PATH" class="form-select">
+                <option value="" {% if not title or '/' not in title %}selected{% endif %}>/ (root)</option>
+                {% for folder in folders %}
+                    {% if folder %}
+                        <option value="{{ folder }}" {% if title.startswith(folder + '/') %}selected{% endif %}>/{{ folder }}</option>
+                    {% endif %}
+                {% endfor %}
+            </select>
+        </div>
+
         <div class="form-check mb-3">
             <input class="form-check-input" type="checkbox" id="isFolder" name="IS_FOLDER">
             <label class="form-check-label" for="isFolder">It's folder</label>
